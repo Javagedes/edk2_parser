@@ -9,6 +9,7 @@ use section::Edk2SectionEntry;
 
 pub mod inf;
 pub mod section;
+mod err;
 
 #[cfg(windows)]
 const LINE_ENDING: &str = "\r\n";
@@ -17,6 +18,7 @@ const LINE_ENDING: &str = "\n";
 
 pub trait Config: Default {
     fn has_conditionals(&self) -> bool;
+    fn no_fail_mode(&self) -> bool;
 }
 pub struct ConfigParser<T: Config> {
     config: T,
@@ -37,7 +39,7 @@ impl<T: Config> ConfigParser<T> {
         }
     }
 
-    pub fn get_section_entries<S: Edk2SectionEntry>(&self, scope: Option<&str>) -> Vec<S> {
+    pub fn get_section_entries<S: Edk2SectionEntry>(&self, scope: Option<&str>) -> Result<Vec<S>> {
         trace!(
             "get_section_entries: [section: {}] [scope: {}]",
             S::section_name(),
@@ -57,19 +59,30 @@ impl<T: Config> ConfigParser<T> {
                 .get(&search_pattern)
                 .unwrap_or(&empty_map)
                 .iter()
-                .map(|(key, value)| S::new(key.clone(), value.clone()));
+                .map(|(key, value)| S::from_key_value_pair(key.clone(), value.clone()));
             for entry in found_entries.rev() {
-                debug!(
-                    "{} entry found in section [{}]",
-                    S::section_name(),
-                    search_pattern
-                );
-                trace!("Entry value: [{}]", entry);
-                entries.insert(0, entry);
+                match entry {
+                    Ok(entry) => {
+                        debug!(
+                            "{} entry found in section [{}]",
+                            S::section_name(),
+                            search_pattern
+                        );
+                        trace!("Entry value: [{}]", entry);
+                        entries.insert(0, entry)
+                    },
+                    Err(err) => { 
+                        if self.config.no_fail_mode() {
+                            warn!("Failed to parse entry: {}", err);
+                        } else {
+                            return Err(err.into());
+                        }
+                    }
+                }
             }
         }
 
-        entries
+        Ok(entries)
     }
 
     pub fn parse_from_file(&mut self, file_path: PathBuf) -> Result<()> {
@@ -287,6 +300,9 @@ mod config_parser_tests {
         fn has_conditionals(&self) -> bool {
             false
         }
+        fn no_fail_mode(&self) -> bool {
+            false
+        }
     }
 
     #[test]
@@ -415,12 +431,12 @@ mod config_parser_tests {
             .parse(src.join(LINE_ENDING))
             .expect("Failed to split sections");
 
-        let results = parser.get_section_entries::<SourceEntry>(None);
+        let results = parser.get_section_entries::<SourceEntry>(None).unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results.get(0).unwrap().path, "MyFile.c");
         assert_eq!(results.get(1).unwrap().path, "MyFile2.c");
 
-        let results = parser.get_section_entries::<SourceEntry>(Some("IA32"));
+        let results = parser.get_section_entries::<SourceEntry>(Some("IA32")).unwrap();
         assert_eq!(results.len(), 4);
         assert_eq!(results.get(2).unwrap().path, "MyFile3.c");
         assert_eq!(results.get(3).unwrap().path, "MyFile4.c");

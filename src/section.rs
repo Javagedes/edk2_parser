@@ -1,10 +1,12 @@
 use std::fmt::Debug;
 use std::fmt::Display;
+use anyhow::{Result, anyhow};
+use crate::err::ParseError;
 
-pub trait Edk2SectionEntry: Debug + Display {
+pub trait Edk2SectionEntry: Sized + Debug + Display {
     fn section_name() -> &'static str;
 
-    fn new(key: String, value: Option<String>) -> Self;
+    fn from_key_value_pair(key: String, value: Option<String>) -> Result<Self>;
 }
 
 /// Contains the parsed data from a single entry in the [Defines] section of an INF file.
@@ -30,14 +32,14 @@ impl Edk2SectionEntry for DefineEntry {
     fn section_name() -> &'static str {
         "defines"
     }
-    fn new(key: String, value: Option<String>) -> Self {
-        Self {
+    fn from_key_value_pair(key: String, value: Option<String>) -> Result<Self> {
+        Ok(Self {
             name: key.trim().to_string(),
             value: value
-                .expect("Define must be in format key = value")
+                .ok_or_else(|| ParseError::InvalidFormat("<name> = <value>"))?
                 .trim()
                 .to_string(),
-        }
+        })
     }
 }
 
@@ -68,13 +70,19 @@ impl Edk2SectionEntry for SourceEntry {
     fn section_name() -> &'static str {
         "sources"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "Source must be in format <path> [|<family>]";
-        Self {
-            path: parts.next().expect(err).trim().to_string(),
-            family: parts.next().map(|x| x.trim().to_string()),
-        }
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
+
+        let (path, family) = match parts.len() {
+            1 => (parts[0], None),
+            2 => (parts[0], Some(parts[1])),
+            _ => return Err(ParseError::InvalidFormat("<path>[|<family>]").into()),
+        };
+
+        Ok(Self {
+            path: path.trim().to_string(),
+            family: family.map(|f| f.trim().to_string())
+        })
     }
 }
 
@@ -99,16 +107,24 @@ impl Edk2SectionEntry for BinaryEntry {
     fn section_name() -> &'static str {
         "binaries"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "Binary must be in format filetype|path";
-        Self {
-            filetype: parts.next().expect(err).trim().to_string(),
-            path: parts.next().expect(err).trim().to_string(),
-            target: parts.next().unwrap_or("*").trim().to_string(),
-            family: parts.next().unwrap_or("*").trim().to_string(),
-            tagname: parts.next().unwrap_or("*").trim().to_string(),
-        }
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
+        
+        let (filetype, path, target, family, tagname) = match parts.len() {
+            2 => (parts[0], parts[1], "*", "*", "*"),
+            3 => (parts[0], parts[1], parts[2], "*", "*"),
+            4 => (parts[0], parts[1], parts[2], parts[3], "*"),
+            5 => (parts[0], parts[1], parts[2], parts[3], parts[4]),
+            _ => return Err(ParseError::InvalidFormat("<filetype>|<path>[|<target>[|<family>[|<tagname>]]]").into()) 
+        };
+        
+        Ok(Self {
+            filetype: filetype.trim().to_string(),
+            path: path.trim().to_string(),
+            target: target.trim().to_string(),
+            family: family.trim().to_string(),
+            tagname: tagname.trim().to_string(),
+        })
     }
 }
 
@@ -132,13 +148,19 @@ impl Edk2SectionEntry for ProtocolEntry {
     fn section_name() -> &'static str {
         "protocols"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "Protocol must be in format <name> [|<expression>]";
-        Self {
-            name: parts.next().expect(err).trim().to_string(),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
+
+        let (name, expression) = match parts.len() {
+            1 => (parts[0], None),
+            2 => (parts[0], Some(parts[1])),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+        };
+
+        Ok(Self {
+            name: name.trim().to_string(),
+            expression: expression.map(|f| f.trim().to_string()),
+        })
     }
 }
 
@@ -162,13 +184,19 @@ impl Edk2SectionEntry for PpiEntry {
     fn section_name() -> &'static str {
         "ppis"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "PPI must be in format <name> [|<expression>]";
-        Self {
-            name: parts.next().expect(err).trim().to_string(),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
+        
+        let (name, expression) = match parts.len() {
+            1 => (parts[0], None),
+            2 => (parts[0], Some(parts[1])),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+        };
+
+        Ok(Self {
+            name: name.trim().to_string(),
+            expression: expression.map(|f| f.trim().to_string())
+        })
     }
 }
 
@@ -192,13 +220,20 @@ impl Edk2SectionEntry for GuidEntry {
     fn section_name() -> &'static str {
         "guids"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
         let err = "GUID must be in format <name> [|<expression>]";
-        Self {
-            name: parts.next().expect(err).trim().to_string(),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+
+        let (name, expression) = match parts.len() {
+            1 => (parts[0], None),
+            2 => (parts[0], Some(parts[1])),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+        };
+ 
+        Ok(Self {
+            name: name.trim().to_string(),
+            expression: expression.map(|x| x.trim().to_string()),
+        })
     }
 }
 
@@ -222,13 +257,20 @@ impl Edk2SectionEntry for LibraryClassEntry {
     fn section_name() -> &'static str {
         "libraryclasses"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
         let err = "LibraryClass must be in format <name> [|<expression>]";
-        Self {
-            name: parts.next().expect(err).trim().to_string(),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+        
+        let (name, expression) = match parts.len() {
+            1 => (parts[0], None),
+            2 => (parts[0], Some(parts[1])),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+        };
+
+        Ok(Self {
+            name: name.trim().to_string(),
+            expression: expression.map(|x| x.trim().to_string()),
+        })
     }
 }
 
@@ -245,10 +287,10 @@ impl Edk2SectionEntry for PackageEntry {
     fn section_name() -> &'static str {
         "packages"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        Self {
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        Ok(Self {
             name: key.trim().to_string(),
-        }
+        })
     }
 }
 
@@ -278,17 +320,33 @@ impl Edk2SectionEntry for FeaturePcdEntry {
     fn section_name() -> &'static str {
         "featurepcd"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "FeaturePcd must be in format <token_space>.<name>[|<value>][|<expression>]";
-        let (name, value) = parts.next().expect(err).split_once('.').expect(err);
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let parts: Vec<&str> = key.split('|').collect();
+        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        //let (name, value) = parts.next().expect(err).split_once('.').expect(err);
 
-        Self {
-            token_space: name.trim().to_string(),
-            name: value.trim().to_string(),
-            value: parts.next().map(|x| x.trim().to_string()),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+        let (token_space, name, value, expression) = match parts.len() {
+            1 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, None, None)
+            },
+            2 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), None)
+            },
+            3 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), Some(parts[2]))
+            }
+            _ => return Err(ParseError::InvalidFormat(err).into())
+        };
+
+        Ok(Self {
+            token_space: token_space.trim().to_string(),
+            name: name.trim().to_string(),
+            value: value.map(|x| x.trim().to_string()),
+            expression: expression.map(|x| x.trim().to_string()),
+        })
     }
 }
 
@@ -318,17 +376,32 @@ impl Edk2SectionEntry for FixedPcdEntry {
     fn section_name() -> &'static str {
         "fixedpcd"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "FixedPcd must be in format <token_space>.<name>[|<value>][|<expression>]";
-        let (name, value) = parts.next().expect(err).split_once('.').expect(err);
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let parts: Vec<&str> = key.split('|').collect();
+        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        
+        let (token_space, name, value, expression) = match parts.len() {
+            1 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, None, None)
+            },
+            2 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), None)
+            },
+            3 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), Some(parts[2]))
+            },
+            _ => return Err(ParseError::InvalidFormat(err).into())
+        };
 
-        Self {
-            token_space: name.trim().to_string(),
-            name: value.trim().to_string(),
-            value: parts.next().map(|x| x.trim().to_string()),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+        Ok(Self {
+            token_space: token_space.trim().to_string(),
+            name: name.trim().to_string(),
+            value: value.map(|x| x.trim().to_string()),
+            expression: expression.map(|x| x.trim().to_string()),
+        })
     }
 }
 #[derive(Debug)]
@@ -351,17 +424,23 @@ impl Edk2SectionEntry for PatchPcdEntry {
     fn section_name() -> &'static str {
         "patchpcd"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
         let err = "PatchPcdEntry must be in format <token_space>.<name>|<value>|<hex>";
-        let (name, value) = parts.next().expect(err).split_once('.').expect(err);
+        let (token_space, name, value, hex) = match parts.len() {
+            3 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, parts[1], parts[2])
+            },
+            _ => return Err(ParseError::InvalidFormat(err).into())
+        };
 
-        Self {
-            token_space: name.trim().to_string(),
-            name: value.trim().to_string(),
-            value: parts.next().expect(err).trim().to_string(),
-            hex: parts.next().expect(err).trim().to_string(),
-        }
+        Ok(Self {
+            token_space: token_space.trim().to_string(),
+            name: name.trim().to_string(),
+            value: value.trim().to_string(),
+            hex: hex.trim().to_string(),
+        })
     }
 }
 
@@ -391,17 +470,31 @@ impl Edk2SectionEntry for PcdEntry {
     fn section_name() -> &'static str {
         "pcd"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "Pcd must be in format <token_space>.<name>[|<value>][|<expression>]";
-        let (name, value) = parts.next().expect(err).split_once('.').expect(err);
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
+        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        let (token_space, name, value, expression) = match parts.len() {
+            1 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, None, None)
+            },
+            2 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), None)
+            },
+            3 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), Some(parts[2]))
+            }
+            _ => return Err(ParseError::InvalidFormat(err).into())
+        };
 
-        Self {
-            token_space: name.trim().to_string(),
-            name: value.trim().to_string(),
-            value: parts.next().map(|x| x.trim().to_string()),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+        Ok(Self {
+            token_space: token_space.trim().to_string(),
+            name: name.trim().to_string(),
+            value: value.map(|x| x.trim().to_string()),
+            expression: expression.map(|x| x.trim().to_string()),
+        })
     }
 }
 
@@ -431,17 +524,32 @@ impl Edk2SectionEntry for PcdEx {
     fn section_name() -> &'static str {
         "pcdex"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        let mut parts = key.split('|');
-        let err = "PcdEx must be in format <token_space>.<name>[|<value>][|<expression>]";
-        let (name, value) = parts.next().expect(err).split_once('.').expect(err);
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        let mut parts: Vec<&str> = key.split('|').collect();
+        let err = "<token_space>.<name>[|<value>][|<expression>]";
 
-        Self {
-            token_space: name.trim().to_string(),
-            name: value.trim().to_string(),
-            value: parts.next().map(|x| x.trim().to_string()),
-            expression: parts.next().map(|x| x.trim().to_string()),
-        }
+        let (token_space, name, value, expression) = match parts.len() {
+            1 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, None, None)
+            },
+            2 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), None)
+            },
+            3 => {
+                let (name, value) = parts[0].split_once('.').ok_or_else(|| ParseError::InvalidFormat(err))?;
+                (name, value, Some(parts[1]), Some(parts[2]))
+            }
+            _ => return Err(ParseError::InvalidFormat(err).into())
+        };
+
+        Ok(Self {
+            token_space: token_space.trim().to_string(),
+            name: name.trim().to_string(),
+            value: value.map(|x| x.trim().to_string()),
+            expression: expression.map(|x| x.trim().to_string()),
+        })
     }
 }
 
@@ -458,10 +566,10 @@ impl Edk2SectionEntry for DepexEntry {
     fn section_name() -> &'static str {
         "depex"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        Self {
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        Ok(Self {
             value: key.trim().to_string(),
-        }
+        })
     }
 }
 
@@ -478,10 +586,10 @@ impl Edk2SectionEntry for UserExtensionEntry {
     fn section_name() -> &'static str {
         "userextensions"
     }
-    fn new(key: String, _value: Option<String>) -> Self {
-        Self {
+    fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
+        Ok(Self {
             value: key.trim().to_string(),
-        }
+        })
     }
 }
 
@@ -515,10 +623,9 @@ impl Edk2SectionEntry for BuildOptionEntry {
     fn section_name() -> &'static str {
         "buildoptions"
     }
-    fn new(key: String, value: Option<String>) -> Self {
+    fn from_key_value_pair(key: String, value: Option<String>) -> Result<Self> {
         let parts: Vec<&str> = key.split(&[':', '_'][..]).collect();
 
-        let err = "BuildOption must be in format [<family>:]<target>_<tagname>_<arch>_<tool_code>_<attribute> = <value>";
         let (family, target, tagname, arch, tool_code, attribute) = match parts.len() {
             5 => (None, parts[0], parts[1], parts[2], parts[3], parts[4]),
             6 => (
@@ -529,10 +636,10 @@ impl Edk2SectionEntry for BuildOptionEntry {
                 parts[4],
                 parts[5],
             ),
-            count => panic!("Only {} parts detected. {}", count, err),
+            _ => return Err(ParseError::InvalidFormat("[<family>:]<target>_<tagname>_<arch>_<tool_code>_<attribute> = <value>").into()),
         };
 
-        Self {
+        Ok(Self {
             family: family.map(|x| x.trim().to_string()),
             target: target.trim().to_string(),
             tagname: tagname.trim().to_string(),
@@ -540,7 +647,7 @@ impl Edk2SectionEntry for BuildOptionEntry {
             tool_code: tool_code.trim().to_string(),
             attribute: attribute.trim().to_string(),
             value: value.unwrap_or("".to_string()),
-        }
+        })
     }
 }
 
@@ -558,7 +665,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(DefineEntry::section_name(), "defines");
-        let entry = DefineEntry::new("INF_VERSION".to_string(), Some(" 0x00010005".to_string()));
+        let entry = DefineEntry::from_key_value_pair("INF_VERSION".to_string(), Some(" 0x00010005".to_string())).unwrap();
         assert_eq!(entry.name, "INF_VERSION");
         assert_eq!(entry.value, "0x00010005");
         assert_eq!(format!("{}", entry), "INF_VERSION = 0x00010005");
@@ -569,11 +676,11 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(SourceEntry::section_name(), "sources");
-        let entry = SourceEntry::new("  MyFile.c".to_string(), None);
+        let entry = SourceEntry::from_key_value_pair("  MyFile.c".to_string(), None).unwrap();
         assert_eq!(entry.path, "MyFile.c");
         assert_eq!(format!("{}", entry), "MyFile.c");
 
-        let entry = SourceEntry::new("MyFile.c | MSFT".to_string(), None);
+        let entry = SourceEntry::from_key_value_pair("MyFile.c | MSFT".to_string(), None).unwrap();
         assert_eq!(entry.path, "MyFile.c");
         assert_eq!(entry.family, Some("MSFT".to_string()));
         assert_eq!(format!("{}", entry), "MyFile.c|MSFT");
@@ -584,7 +691,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(BinaryEntry::section_name(), "binaries");
-        let entry = BinaryEntry::new("RAW|MyFile/file.ext".to_string(), None);
+        let entry = BinaryEntry::from_key_value_pair("RAW|MyFile/file.ext".to_string(), None).unwrap();
         assert_eq!(entry.filetype, "RAW");
         assert_eq!(entry.path, "MyFile/file.ext");
         assert_eq!(entry.target, "*");
@@ -592,7 +699,7 @@ mod section_entry_tests {
         assert_eq!(entry.tagname, "*");
         assert_eq!(format!("{}", entry), "RAW|MyFile/file.ext|*|*|*");
 
-        let entry = BinaryEntry::new("RAW|MyFile/file.ext|*|MSFT".to_string(), None);
+        let entry = BinaryEntry::from_key_value_pair("RAW|MyFile/file.ext|*|MSFT".to_string(), None).unwrap();
         assert_eq!(entry.filetype, "RAW");
         assert_eq!(entry.path, "MyFile/file.ext");
         assert_eq!(entry.target, "*");
@@ -600,7 +707,7 @@ mod section_entry_tests {
         assert_eq!(entry.tagname, "*");
         assert_eq!(format!("{}", entry), "RAW|MyFile/file.ext|*|MSFT|*");
 
-        let entry = BinaryEntry::new("RAW|MyFile/file.ext|RELEASE|*|MyTag".to_string(), None);
+        let entry = BinaryEntry::from_key_value_pair("RAW|MyFile/file.ext|RELEASE|*|MyTag".to_string(), None).unwrap();
         assert_eq!(entry.filetype, "RAW");
         assert_eq!(entry.path, "MyFile/file.ext");
         assert_eq!(entry.target, "RELEASE");
@@ -608,7 +715,7 @@ mod section_entry_tests {
         assert_eq!(entry.tagname, "MyTag");
         assert_eq!(format!("{}", entry), "RAW|MyFile/file.ext|RELEASE|*|MyTag");
 
-        let entry = BinaryEntry::new("RAW|MyFile/file.ext|*|*|MyTag".to_string(), None);
+        let entry = BinaryEntry::from_key_value_pair("RAW|MyFile/file.ext|*|*|MyTag".to_string(), None).unwrap();
         assert_eq!(entry.filetype, "RAW");
         assert_eq!(entry.path, "MyFile/file.ext");
         assert_eq!(entry.target, "*");
@@ -622,12 +729,12 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(ProtocolEntry::section_name(), "protocols");
-        let entry = ProtocolEntry::new("gEfiPciIoProtocolGuid".to_string(), None);
+        let entry = ProtocolEntry::from_key_value_pair("gEfiPciIoProtocolGuid".to_string(), None).unwrap();
         assert_eq!(entry.name, "gEfiPciIoProtocolGuid");
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gEfiPciIoProtocolGuid");
 
-        let entry = ProtocolEntry::new("gEfiPciIoProtocolGuid|TRUE".to_string(), None);
+        let entry = ProtocolEntry::from_key_value_pair("gEfiPciIoProtocolGuid|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.name, "gEfiPciIoProtocolGuid");
         assert_eq!(entry.expression, Some("TRUE".to_string()));
         assert_eq!(format!("{}", entry), "gEfiPciIoProtocolGuid | TRUE");
@@ -638,12 +745,12 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(PpiEntry::section_name(), "ppis");
-        let entry = PpiEntry::new("gEfiPeiMemoryDiscoveredPpiGuid".to_string(), None);
+        let entry = PpiEntry::from_key_value_pair("gEfiPeiMemoryDiscoveredPpiGuid".to_string(), None).unwrap();
         assert_eq!(entry.name, "gEfiPeiMemoryDiscoveredPpiGuid");
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gEfiPeiMemoryDiscoveredPpiGuid");
 
-        let entry = PpiEntry::new("gEfiPeiMemoryDiscoveredPpiGuid|TRUE".to_string(), None);
+        let entry = PpiEntry::from_key_value_pair("gEfiPeiMemoryDiscoveredPpiGuid|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.name, "gEfiPeiMemoryDiscoveredPpiGuid");
         assert_eq!(entry.expression, Some("TRUE".to_string()));
         assert_eq!(format!("{}", entry), "gEfiPeiMemoryDiscoveredPpiGuid|TRUE");
@@ -654,12 +761,12 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(GuidEntry::section_name(), "guids");
-        let entry = GuidEntry::new("gEfiHobMemoryAllocModuleGuid".to_string(), None);
+        let entry = GuidEntry::from_key_value_pair("gEfiHobMemoryAllocModuleGuid".to_string(), None).unwrap();
         assert_eq!(entry.name, "gEfiHobMemoryAllocModuleGuid");
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gEfiHobMemoryAllocModuleGuid");
 
-        let entry = GuidEntry::new("gEfiHobMemoryAllocModuleGuid|TRUE".to_string(), None);
+        let entry = GuidEntry::from_key_value_pair("gEfiHobMemoryAllocModuleGuid|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.name, "gEfiHobMemoryAllocModuleGuid");
         assert_eq!(entry.expression, Some("TRUE".to_string()));
         assert_eq!(format!("{}", entry), "gEfiHobMemoryAllocModuleGuid|TRUE");
@@ -670,12 +777,12 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(LibraryClassEntry::section_name(), "libraryclasses");
-        let entry = LibraryClassEntry::new("MyLib".to_string(), None);
+        let entry = LibraryClassEntry::from_key_value_pair("MyLib".to_string(), None).unwrap();
         assert_eq!(entry.name, "MyLib");
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "MyLib");
 
-        let entry = LibraryClassEntry::new("MyLib|TRUE".to_string(), None);
+        let entry = LibraryClassEntry::from_key_value_pair("MyLib|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.name, "MyLib");
         assert_eq!(entry.expression, Some("TRUE".to_string()));
         assert_eq!(format!("{}", entry), "MyLib|TRUE");
@@ -686,7 +793,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(PackageEntry::section_name(), "packages");
-        let entry = PackageEntry::new("MdePkg/MdePkg.dec".to_string(), None);
+        let entry = PackageEntry::from_key_value_pair("MdePkg/MdePkg.dec".to_string(), None).unwrap();
         assert_eq!(entry.name, "MdePkg/MdePkg.dec");
         assert_eq!(format!("{}", entry), "MdePkg/MdePkg.dec");
     }
@@ -696,14 +803,14 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(FeaturePcdEntry::section_name(), "featurepcd");
-        let entry = FeaturePcdEntry::new("gTokenSpace.PcdMyFeature|TRUE".to_string(), None);
+        let entry = FeaturePcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, Some("TRUE".to_string()));
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.PcdMyFeature|TRUE");
 
-        let entry = FeaturePcdEntry::new("gTokenSpace.PcdMyFeature".to_string(), None);
+        let entry = FeaturePcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, None);
@@ -711,7 +818,7 @@ mod section_entry_tests {
         assert_eq!(format!("{}", entry), "gTokenSpace.PcdMyFeature");
 
         let entry =
-            FeaturePcdEntry::new("gTokenSpace.PcdMyFeature|L\"HELLO\"|TRUE".to_string(), None);
+            FeaturePcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature|L\"HELLO\"|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, Some("L\"HELLO\"".to_string()));
@@ -727,14 +834,14 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(FixedPcdEntry::section_name(), "fixedpcd");
-        let entry = FixedPcdEntry::new("gTokenSpace.PcdMyFeature|TRUE".to_string(), None);
+        let entry = FixedPcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, Some("TRUE".to_string()));
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.PcdMyFeature|TRUE");
 
-        let entry = FixedPcdEntry::new("gTokenSpace.PcdMyFeature".to_string(), None);
+        let entry = FixedPcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, None);
@@ -742,7 +849,7 @@ mod section_entry_tests {
         assert_eq!(format!("{}", entry), "gTokenSpace.PcdMyFeature");
 
         let entry =
-            FixedPcdEntry::new("gTokenSpace.PcdMyFeature|L\"HELLO\"|TRUE".to_string(), None);
+            FixedPcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature|L\"HELLO\"|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, Some("L\"HELLO\"".to_string()));
@@ -758,7 +865,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(PatchPcdEntry::section_name(), "patchpcd");
-        let entry = PatchPcdEntry::new("gTokenSpace.PcdMyFeature|TRUE|0x1234".to_string(), None);
+        let entry = PatchPcdEntry::from_key_value_pair("gTokenSpace.PcdMyFeature|TRUE|0x1234".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "PcdMyFeature");
         assert_eq!(entry.value, "TRUE");
@@ -771,21 +878,21 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(PcdEntry::section_name(), "pcd");
-        let entry = PcdEntry::new("gTokenSpace.MyPcd|TRUE".to_string(), None);
+        let entry = PcdEntry::from_key_value_pair("gTokenSpace.MyPcd|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, Some("TRUE".to_string()));
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.MyPcd|TRUE");
 
-        let entry = PcdEntry::new("gTokenSpace.MyPcd".to_string(), None);
+        let entry = PcdEntry::from_key_value_pair("gTokenSpace.MyPcd".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, None);
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.MyPcd");
 
-        let entry = PcdEntry::new("gTokenSpace.MyPcd|L\"HELLO\"|TRUE".to_string(), None);
+        let entry = PcdEntry::from_key_value_pair("gTokenSpace.MyPcd|L\"HELLO\"|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, Some("L\"HELLO\"".to_string()));
@@ -798,21 +905,21 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(PcdEx::section_name(), "pcdex");
-        let entry = PcdEx::new("gTokenSpace.MyPcd|TRUE".to_string(), None);
+        let entry = PcdEx::from_key_value_pair("gTokenSpace.MyPcd|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, Some("TRUE".to_string()));
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.MyPcd|TRUE");
 
-        let entry = PcdEx::new("gTokenSpace.MyPcd".to_string(), None);
+        let entry = PcdEx::from_key_value_pair("gTokenSpace.MyPcd".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, None);
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.MyPcd");
 
-        let entry = PcdEx::new("gTokenSpace.MyPcd|L\"HELLO\"|TRUE".to_string(), None);
+        let entry = PcdEx::from_key_value_pair("gTokenSpace.MyPcd|L\"HELLO\"|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, Some("L\"HELLO\"".to_string()));
@@ -825,7 +932,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(DepexEntry::section_name(), "depex");
-        let entry = DepexEntry::new("TRUE".to_string(), None);
+        let entry = DepexEntry::from_key_value_pair("TRUE".to_string(), None).unwrap();
         assert_eq!(entry.value, "TRUE");
         assert_eq!(format!("{}", entry), "TRUE");
     }
@@ -835,7 +942,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(UserExtensionEntry::section_name(), "userextensions");
-        let entry = UserExtensionEntry::new("MyUserExtension".to_string(), None);
+        let entry = UserExtensionEntry::from_key_value_pair("MyUserExtension".to_string(), None).unwrap();
         assert_eq!(entry.value, "MyUserExtension");
         assert_eq!(format!("{}", entry), "MyUserExtension");
     }
@@ -845,7 +952,7 @@ mod section_entry_tests {
         logger_init();
 
         assert_eq!(BuildOptionEntry::section_name(), "buildoptions");
-        let entry = BuildOptionEntry::new("RELEASE_VS2022_IA32_DLINK_FLAGS".to_string(), None);
+        let entry = BuildOptionEntry::from_key_value_pair("RELEASE_VS2022_IA32_DLINK_FLAGS".to_string(), None).unwrap();
         assert_eq!(entry.family, None);
         assert_eq!(entry.target, "RELEASE");
         assert_eq!(entry.tagname, "VS2022");
@@ -855,10 +962,10 @@ mod section_entry_tests {
         assert_eq!(entry.value, "");
         assert_eq!(format!("{}", entry), "RELEASE_VS2022_IA32_DLINK_FLAGS = ");
 
-        let entry = BuildOptionEntry::new(
+        let entry = BuildOptionEntry::from_key_value_pair(
             "MSFT:RELEASE_*_*_DLINK_PATH".to_string(),
             Some("= C:\\link.exe".to_string()),
-        );
+        ).unwrap();
         assert_eq!(entry.family, Some("MSFT".to_string()));
         assert_eq!(entry.target, "RELEASE");
         assert_eq!(entry.tagname, "*");
@@ -871,10 +978,10 @@ mod section_entry_tests {
             "MSFT:RELEASE_*_*_DLINK_PATH = = C:\\link.exe"
         );
 
-        let entry = BuildOptionEntry::new(
+        let entry = BuildOptionEntry::from_key_value_pair(
             "MSFT:*_*_*_CC_FLAGS".to_string(),
             Some("=MyValue".to_string()),
-        );
+        ).unwrap();
         assert_eq!(entry.family, Some("MSFT".to_string()));
         assert_eq!(entry.target, "*");
         assert_eq!(entry.tagname, "*");
@@ -884,7 +991,7 @@ mod section_entry_tests {
         assert_eq!(entry.value, "=MyValue".to_string());
         assert_eq!(format!("{}", entry), "MSFT:*_*_*_CC_FLAGS = =MyValue");
 
-        let entry = BuildOptionEntry::new("MSFT:*_*_*_CC_FLAGS".to_string(), Some("".to_string()));
+        let entry = BuildOptionEntry::from_key_value_pair("MSFT:*_*_*_CC_FLAGS".to_string(), Some("".to_string())).unwrap();
         assert_eq!(entry.family, Some("MSFT".to_string()));
         assert_eq!(entry.target, "*");
         assert_eq!(entry.tagname, "*");
