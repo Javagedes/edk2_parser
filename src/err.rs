@@ -1,7 +1,9 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ParseError<'a> {
+pub enum ParseError {
     #[error("Invalid Format. Expected [{0}]")]
-    InvalidFormat(&'a str),
+    InvalidFormat(String),
+    #[error("Unknown Section: [{0}]")]
+    UnknownSection(String),
 }

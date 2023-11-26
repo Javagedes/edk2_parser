@@ -13,7 +13,8 @@
     "ignoreWords": [
         "myfile",
         "dlink",
-        "infp"
+        "infp",
+        "rmps"
     ],
     "words": [
         "ppis",

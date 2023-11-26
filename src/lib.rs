@@ -1,11 +1,11 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{fs::File, io::Read, path::PathBuf, str::FromStr};
 
 use anyhow::Result;
 use configparser::ini::{Ini, IniDefault};
 use indexmap::IndexMap as Map;
 use log::{self, debug, trace, warn};
 use regex::Regex;
-use section::Edk2SectionEntry;
+use section::{Edk2SectionEntry, SectionType};
 
 mod err;
 pub mod inf;
@@ -23,7 +23,7 @@ pub trait Config: Default {
 pub struct ConfigParser<T: Config> {
     config: T,
     pub lines: Option<Vec<String>>,
-    map: Option<Map<String, Map<String, Option<String>>>>,
+    entry_map: Map<String, Vec<Vec<u8>>>,
 }
 impl<T: Config> Default for ConfigParser<T> {
     fn default() -> Self {
@@ -35,7 +35,7 @@ impl<T: Config> ConfigParser<T> {
         Self {
             config: Default::default(),
             lines: None,
-            map: None,
+            entry_map: Map::new(),
         }
     }
 
@@ -51,15 +51,15 @@ impl<T: Config> ConfigParser<T> {
         });
 
         let mut entries = Vec::new();
-        let map = self.map.as_ref().expect("Nothing has been parsed.");
-        let empty_map = Map::new();
+        let empty_vec = Vec::new();
         for search_pattern in self.create_search_patterns(section_name.clone()) {
             // Search in the current section/scope
-            let found_entries = map
+            let found_entries = self
+                .entry_map
                 .get(&search_pattern)
-                .unwrap_or(&empty_map)
+                .unwrap_or(&empty_vec)
                 .iter()
-                .map(|(key, value)| S::from_key_value_pair(key.clone(), value.clone()));
+                .map(|entry| S::from_bytes(entry));
             for entry in found_entries.rev() {
                 match entry {
                     Ok(entry) => {
@@ -81,7 +81,6 @@ impl<T: Config> ConfigParser<T> {
                 }
             }
         }
-
         Ok(entries)
     }
 
@@ -238,7 +237,6 @@ impl<T: Config> ConfigParser<T> {
         macro_map: &Map<String, Map<String, String>>,
         current_section: String,
     ) -> Option<String> {
-        println!("{}", current_section);
         let mut search_patterns = self.create_search_patterns(current_section.clone());
         search_patterns.push("defines".to_string());
 
@@ -279,8 +277,24 @@ impl<T: Config> ConfigParser<T> {
             )
             .unwrap();
 
-        self.map = Some(map);
+        self.parse_section_entries(map)?;
 
+        Ok(())
+    }
+
+    fn parse_section_entries(
+        &mut self,
+        map: Map<String, Map<String, Option<String>>>,
+    ) -> Result<()> {
+        for (section_name, section) in map {
+            let section_type = section_name.split('.').collect::<Vec<&str>>()[0];
+            for (key, value) in section {
+                self.entry_map
+                    .entry(section_name.to_lowercase())
+                    .or_default()
+                    .push(SectionType::from_str(section_type)?.to_bytes(key, value)?);
+            }
+        }
         Ok(())
     }
 }

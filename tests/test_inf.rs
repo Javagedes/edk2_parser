@@ -77,6 +77,7 @@ mod tests {
 
         let data = include_str!("data/opensslLib.inf").to_string();
         let mut infp = ConfigParser::<Inf>::new();
+
         infp.parse(data).unwrap();
 
         assert!(!infp

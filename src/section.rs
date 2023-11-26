@@ -1,12 +1,98 @@
 use crate::err::ParseError;
 use anyhow::Result;
+use rmp_serde as rmps;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::str::FromStr;
 
-pub trait Edk2SectionEntry: Sized + Debug + Display {
-    fn section_name() -> &'static str;
+pub enum SectionType {
+    Defines,
+    Sources,
+    Binaries,
+    Protocols,
+    Ppis,
+    Guids,
+    LibraryClasses,
+    Packages,
+    FeaturePcd,
+    FixedPcd,
+    PatchPcd,
+    Pcd,
+    PcdEx,
+    Depex,
+    UserExtensions,
+    BuildOptions,
+}
+
+impl SectionType {
+    pub fn to_bytes(&self, key: String, value: Option<String>) -> Result<Vec<u8>> {
+        match self {
+            SectionType::Defines => DefineEntry::to_bytes(key, value),
+            SectionType::Sources => SourceEntry::to_bytes(key, value),
+            SectionType::Binaries => BinaryEntry::to_bytes(key, value),
+            SectionType::Protocols => ProtocolEntry::to_bytes(key, value),
+            SectionType::Ppis => PpiEntry::to_bytes(key, value),
+            SectionType::Guids => GuidEntry::to_bytes(key, value),
+            SectionType::LibraryClasses => LibraryClassEntry::to_bytes(key, value),
+            SectionType::Packages => PackageEntry::to_bytes(key, value),
+            SectionType::FeaturePcd => FeaturePcdEntry::to_bytes(key, value),
+            SectionType::FixedPcd => FixedPcdEntry::to_bytes(key, value),
+            SectionType::PatchPcd => PatchPcdEntry::to_bytes(key, value),
+            SectionType::Pcd => PcdEntry::to_bytes(key, value),
+            SectionType::PcdEx => PcdExEntry::to_bytes(key, value),
+            SectionType::Depex => DepexEntry::to_bytes(key, value),
+            SectionType::UserExtensions => UserExtensionEntry::to_bytes(key, value),
+            SectionType::BuildOptions => BuildOptionEntry::to_bytes(key, value),
+        }
+    }
+}
+
+impl FromStr for SectionType {
+    type Err = ParseError;
+
+    fn from_str(section_name: &str) -> Result<Self, Self::Err> {
+        match section_name {
+            "defines" => Ok(SectionType::Defines),
+            "sources" => Ok(SectionType::Sources),
+            "binaries" => Ok(SectionType::Binaries),
+            "protocols" => Ok(SectionType::Protocols),
+            "ppis" => Ok(SectionType::Ppis),
+            "guids" => Ok(SectionType::Guids),
+            "libraryclasses" => Ok(SectionType::LibraryClasses),
+            "packages" => Ok(SectionType::Packages),
+            "featurepcd" => Ok(SectionType::FeaturePcd),
+            "fixedpcd" => Ok(SectionType::FixedPcd),
+            "patchpcd" => Ok(SectionType::PatchPcd),
+            "pcd" => Ok(SectionType::Pcd),
+            "pcdex" => Ok(SectionType::PcdEx),
+            "depex" => Ok(SectionType::Depex),
+            "userextensions" => Ok(SectionType::UserExtensions),
+            "buildoptions" => Ok(SectionType::BuildOptions),
+            _ => Err(ParseError::UnknownSection(section_name.to_string())),
+        }
+    }
+}
+
+pub trait Edk2SectionEntry: Display + Serialize + Deserialize<'static> {
+    fn section_name() -> &'static str
+    where
+        Self: Sized;
 
     fn from_key_value_pair(key: String, value: Option<String>) -> Result<Self>;
+
+    fn to_bytes(key: String, value: Option<String>) -> Result<Vec<u8>> {
+        let section_entry = Self::from_key_value_pair(key, value)?;
+        let mut buf = Vec::new();
+        section_entry.serialize(&mut rmps::Serializer::new(&mut buf))?;
+        Ok(buf)
+    }
+
+    fn from_bytes(buf: &[u8]) -> Result<Self> {
+        let mut de = rmps::Deserializer::new(buf);
+        let section_entry = Self::deserialize(&mut de)?;
+        Ok(section_entry)
+    }
 }
 
 /// Contains the parsed data from a single entry in the [Defines] section of an INF file.
@@ -18,7 +104,7 @@ pub trait Edk2SectionEntry: Sized + Debug + Display {
 /// ```text
 ///   <name> = <value>
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DefineEntry {
     pub name: String,
     pub value: String,
@@ -36,7 +122,7 @@ impl Edk2SectionEntry for DefineEntry {
         Ok(Self {
             name: key.trim().to_string(),
             value: value
-                .ok_or(ParseError::InvalidFormat("<name> = <value>"))?
+                .ok_or(ParseError::InvalidFormat("<name> = <value>".to_string()))?
                 .trim()
                 .to_string(),
         })
@@ -50,7 +136,7 @@ impl Edk2SectionEntry for DefineEntry {
 /// ```text
 ///   path
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SourceEntry {
     pub path: String,
     pub family: Option<String>,
@@ -76,7 +162,7 @@ impl Edk2SectionEntry for SourceEntry {
         let (path, family) = match parts.len() {
             1 => (parts[0], None),
             2 => (parts[0], Some(parts[1])),
-            _ => return Err(ParseError::InvalidFormat("<path>[|<family>]").into()),
+            _ => return Err(ParseError::InvalidFormat("<path>[|<family>]".to_string()).into()),
         };
 
         Ok(Self {
@@ -86,7 +172,7 @@ impl Edk2SectionEntry for SourceEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BinaryEntry {
     pub filetype: String,
     pub path: String,
@@ -117,7 +203,7 @@ impl Edk2SectionEntry for BinaryEntry {
             5 => (parts[0], parts[1], parts[2], parts[3], parts[4]),
             _ => {
                 return Err(ParseError::InvalidFormat(
-                    "<filetype>|<path>[|<target>[|<family>[|<tagname>]]]",
+                    "<filetype>|<path>[|<target>[|<family>[|<tagname>]]]".to_string(),
                 )
                 .into())
             }
@@ -133,7 +219,7 @@ impl Edk2SectionEntry for BinaryEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProtocolEntry {
     pub name: String,
     pub expression: Option<String>,
@@ -159,7 +245,7 @@ impl Edk2SectionEntry for ProtocolEntry {
         let (name, expression) = match parts.len() {
             1 => (parts[0], None),
             2 => (parts[0], Some(parts[1])),
-            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]".to_string()).into()),
         };
 
         Ok(Self {
@@ -169,7 +255,7 @@ impl Edk2SectionEntry for ProtocolEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PpiEntry {
     pub name: String,
     pub expression: Option<String>,
@@ -195,7 +281,7 @@ impl Edk2SectionEntry for PpiEntry {
         let (name, expression) = match parts.len() {
             1 => (parts[0], None),
             2 => (parts[0], Some(parts[1])),
-            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]".to_string()).into()),
         };
 
         Ok(Self {
@@ -205,7 +291,7 @@ impl Edk2SectionEntry for PpiEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GuidEntry {
     pub name: String,
     pub expression: Option<String>,
@@ -231,7 +317,7 @@ impl Edk2SectionEntry for GuidEntry {
         let (name, expression) = match parts.len() {
             1 => (parts[0], None),
             2 => (parts[0], Some(parts[1])),
-            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]".to_string()).into()),
         };
 
         Ok(Self {
@@ -241,7 +327,7 @@ impl Edk2SectionEntry for GuidEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LibraryClassEntry {
     pub name: String,
     pub expression: Option<String>,
@@ -267,7 +353,7 @@ impl Edk2SectionEntry for LibraryClassEntry {
         let (name, expression) = match parts.len() {
             1 => (parts[0], None),
             2 => (parts[0], Some(parts[1])),
-            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]").into()),
+            _ => return Err(ParseError::InvalidFormat("<name>[|<expression>]".to_string()).into()),
         };
 
         Ok(Self {
@@ -277,7 +363,7 @@ impl Edk2SectionEntry for LibraryClassEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PackageEntry {
     pub name: String,
 }
@@ -297,7 +383,7 @@ impl Edk2SectionEntry for PackageEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FeaturePcdEntry {
     pub token_space: String,
     pub name: String,
@@ -325,7 +411,7 @@ impl Edk2SectionEntry for FeaturePcdEntry {
     }
     fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
         let parts: Vec<&str> = key.split('|').collect();
-        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        let err = "<token_space>.<name>[|<value>][|<expression>]".to_string();
 
         let (token_space, name, value, expression) = match parts.len() {
             1 => {
@@ -358,7 +444,7 @@ impl Edk2SectionEntry for FeaturePcdEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FixedPcdEntry {
     pub token_space: String,
     pub name: String,
@@ -386,7 +472,7 @@ impl Edk2SectionEntry for FixedPcdEntry {
     }
     fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
         let parts: Vec<&str> = key.split('|').collect();
-        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        let err = "<token_space>.<name>[|<value>][|<expression>]".to_string();
 
         let (token_space, name, value, expression) = match parts.len() {
             1 => {
@@ -418,7 +504,8 @@ impl Edk2SectionEntry for FixedPcdEntry {
         })
     }
 }
-#[derive(Debug)]
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PatchPcdEntry {
     pub token_space: String,
     pub name: String,
@@ -440,7 +527,7 @@ impl Edk2SectionEntry for PatchPcdEntry {
     }
     fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
         let parts: Vec<&str> = key.split('|').collect();
-        let err = "PatchPcdEntry must be in format <token_space>.<name>|<value>|<hex>";
+        let err = "PatchPcdEntry must be in format <token_space>.<name>|<value>|<hex>".to_string();
         let (token_space, name, value, hex) = match parts.len() {
             3 => {
                 let (name, value) = parts[0]
@@ -460,7 +547,7 @@ impl Edk2SectionEntry for PatchPcdEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PcdEntry {
     pub token_space: String,
     pub name: String,
@@ -488,7 +575,7 @@ impl Edk2SectionEntry for PcdEntry {
     }
     fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
         let parts: Vec<&str> = key.split('|').collect();
-        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        let err = "<token_space>.<name>[|<value>][|<expression>]".to_string();
         let (token_space, name, value, expression) = match parts.len() {
             1 => {
                 let (name, value) = parts[0]
@@ -520,14 +607,14 @@ impl Edk2SectionEntry for PcdEntry {
     }
 }
 
-#[derive(Debug)]
-pub struct PcdEx {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PcdExEntry {
     pub token_space: String,
     pub name: String,
     pub value: Option<String>,
     pub expression: Option<String>,
 }
-impl Display for PcdEx {
+impl Display for PcdExEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.token_space, self.name)?;
 
@@ -542,13 +629,13 @@ impl Display for PcdEx {
         Ok(())
     }
 }
-impl Edk2SectionEntry for PcdEx {
+impl Edk2SectionEntry for PcdExEntry {
     fn section_name() -> &'static str {
         "pcdex"
     }
     fn from_key_value_pair(key: String, _value: Option<String>) -> Result<Self> {
         let parts: Vec<&str> = key.split('|').collect();
-        let err = "<token_space>.<name>[|<value>][|<expression>]";
+        let err = "<token_space>.<name>[|<value>][|<expression>]".to_string();
 
         let (token_space, name, value, expression) = match parts.len() {
             1 => {
@@ -581,7 +668,7 @@ impl Edk2SectionEntry for PcdEx {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DepexEntry {
     value: String,
 }
@@ -601,7 +688,7 @@ impl Edk2SectionEntry for DepexEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UserExtensionEntry {
     value: String,
 }
@@ -625,7 +712,7 @@ impl Edk2SectionEntry for UserExtensionEntry {
 /// if value starts with a "=", replace the entry if it exists.
 /// otherwise, just append.
 /// If a $() is in quotes, don't replace TODO: replace_macro probably breaks this
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BuildOptionEntry {
     pub family: Option<String>,
     pub target: String,
@@ -666,7 +753,8 @@ impl Edk2SectionEntry for BuildOptionEntry {
             ),
             _ => {
                 return Err(ParseError::InvalidFormat(
-                    "[<family>:]<target>_<tagname>_<arch>_<tool_code>_<attribute> = <value>",
+                    "[<family>:]<target>_<tagname>_<arch>_<tool_code>_<attribute> = <value>"
+                        .to_string(),
                 )
                 .into())
             }
@@ -983,15 +1071,16 @@ mod section_entry_tests {
     fn test_pcd_ex_entry() {
         logger_init();
 
-        assert_eq!(PcdEx::section_name(), "pcdex");
-        let entry = PcdEx::from_key_value_pair("gTokenSpace.MyPcd|TRUE".to_string(), None).unwrap();
+        assert_eq!(PcdExEntry::section_name(), "pcdex");
+        let entry =
+            PcdExEntry::from_key_value_pair("gTokenSpace.MyPcd|TRUE".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, Some("TRUE".to_string()));
         assert_eq!(entry.expression, None);
         assert_eq!(format!("{}", entry), "gTokenSpace.MyPcd|TRUE");
 
-        let entry = PcdEx::from_key_value_pair("gTokenSpace.MyPcd".to_string(), None).unwrap();
+        let entry = PcdExEntry::from_key_value_pair("gTokenSpace.MyPcd".to_string(), None).unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
         assert_eq!(entry.value, None);
@@ -999,7 +1088,7 @@ mod section_entry_tests {
         assert_eq!(format!("{}", entry), "gTokenSpace.MyPcd");
 
         let entry =
-            PcdEx::from_key_value_pair("gTokenSpace.MyPcd|L\"HELLO\"|TRUE".to_string(), None)
+            PcdExEntry::from_key_value_pair("gTokenSpace.MyPcd|L\"HELLO\"|TRUE".to_string(), None)
                 .unwrap();
         assert_eq!(entry.token_space, "gTokenSpace");
         assert_eq!(entry.name, "MyPcd");
