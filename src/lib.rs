@@ -7,9 +7,9 @@ use log::{self, debug, trace, warn};
 use regex::Regex;
 use section::Edk2SectionEntry;
 
+mod err;
 pub mod inf;
 pub mod section;
-mod err;
 
 #[cfg(windows)]
 const LINE_ENDING: &str = "\r\n";
@@ -70,12 +70,12 @@ impl<T: Config> ConfigParser<T> {
                         );
                         trace!("Entry value: [{}]", entry);
                         entries.insert(0, entry)
-                    },
-                    Err(err) => { 
+                    }
+                    Err(err) => {
                         if self.config.no_fail_mode() {
                             warn!("Failed to parse entry: {}", err);
                         } else {
-                            return Err(err.into());
+                            return Err(err);
                         }
                     }
                 }
@@ -436,7 +436,9 @@ mod config_parser_tests {
         assert_eq!(results.get(0).unwrap().path, "MyFile.c");
         assert_eq!(results.get(1).unwrap().path, "MyFile2.c");
 
-        let results = parser.get_section_entries::<SourceEntry>(Some("IA32")).unwrap();
+        let results = parser
+            .get_section_entries::<SourceEntry>(Some("IA32"))
+            .unwrap();
         assert_eq!(results.len(), 4);
         assert_eq!(results.get(2).unwrap().path, "MyFile3.c");
         assert_eq!(results.get(3).unwrap().path, "MyFile4.c");

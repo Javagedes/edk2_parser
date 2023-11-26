@@ -22,13 +22,20 @@ mod tests {
         let mut infp = ConfigParser::<Inf>::new();
         infp.parse(data).unwrap();
 
-        assert_eq!(infp.get_section_entries::<SourceEntry>(None).unwrap().len(), 37);
         assert_eq!(
-            infp.get_section_entries::<SourceEntry>(Some("IA32")).unwrap().len(),
+            infp.get_section_entries::<SourceEntry>(None).unwrap().len(),
+            37
+        );
+        assert_eq!(
+            infp.get_section_entries::<SourceEntry>(Some("IA32"))
+                .unwrap()
+                .len(),
             180
         );
         assert_eq!(
-            infp.get_section_entries::<SourceEntry>(Some("x64")).unwrap().len(),
+            infp.get_section_entries::<SourceEntry>(Some("x64"))
+                .unwrap()
+                .len(),
             150
         );
         assert_eq!(
@@ -56,7 +63,12 @@ mod tests {
         );
 
         assert_eq!(infp.get_section_entries::<PcdEntry>(None).unwrap().len(), 5);
-        assert_eq!(infp.get_section_entries::<FeaturePcdEntry>(None).unwrap().len(), 1);
+        assert_eq!(
+            infp.get_section_entries::<FeaturePcdEntry>(None)
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -78,7 +90,12 @@ mod tests {
             .iter()
             .any(|s| s.path == "openssl/crypto/asn1/x_sig.c"),);
 
-        assert_eq!(infp.get_section_entries::<LibraryClassEntry>(None).unwrap().len(), 4);
+        assert_eq!(
+            infp.get_section_entries::<LibraryClassEntry>(None)
+                .unwrap()
+                .len(),
+            4
+        );
         assert_eq!(
             infp.get_section_entries::<LibraryClassEntry>(Some("ARM"))
                 .unwrap()
@@ -156,6 +173,9 @@ mod tests {
         let mut infp = ConfigParser::<Inf>::new();
         infp.parse(data).unwrap();
 
-        assert_eq!(infp.get_section_entries::<SourceEntry>(None).unwrap().len(), 1);
+        assert_eq!(
+            infp.get_section_entries::<SourceEntry>(None).unwrap().len(),
+            1
+        );
     }
 }
