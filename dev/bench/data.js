@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701047990230,
+  "lastUpdate": 1701054632984,
   "repoUrl": "https://github.com/Javagedes/edk2_parser",
   "entries": {
     "Rust Benchmark": [
@@ -199,6 +199,42 @@ window.BENCHMARK_DATA = {
             "name": "parse_inf/opensslLib",
             "value": 2790587,
             "range": "± 45944",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7be4d29d8139310ff65612ecfd0e6102311bd9e1",
+          "message": "Bump actions/upload-artifact from 1 to 3 (#4)\n\nBumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 1 to 3.\r\n- [Release notes](https://github.com/actions/upload-artifact/releases)\r\n- [Commits](https://github.com/actions/upload-artifact/compare/v1...v3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/upload-artifact\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-11-26T19:09:05-08:00",
+          "tree_id": "ff3b2da89600558942619a32fa23a01115d8b004",
+          "url": "https://github.com/Javagedes/edk2_parser/commit/7be4d29d8139310ff65612ecfd0e6102311bd9e1"
+        },
+        "date": 1701054632611,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "parse_inf/baseLib",
+            "value": 1915163,
+            "range": "± 27794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_inf/opensslLib",
+            "value": 2769407,
+            "range": "± 23698",
             "unit": "ns/iter"
           }
         ]
