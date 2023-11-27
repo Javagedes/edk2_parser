@@ -1,18 +1,22 @@
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
+    use edk2_parser::{inf::Inf, ConfigParser};
     use git2;
-    use tempfile;
     use glob;
     use std;
-    use edk2_parser::{ConfigParser, inf::Inf};
 
     #[test]
     fn parse_edk2_inf() {
-        let repo_path = std::env::current_dir().unwrap().join("target").join("tmp").join("edk2");
+        let repo_path = std::env::current_dir()
+            .unwrap()
+            .join("target")
+            .join("tmp")
+            .join("edk2");
         if !repo_path.exists() {
-            git2::Repository::clone("https://github.com/tianocore/edk2.git", &repo_path).unwrap().workdir().unwrap();
+            git2::Repository::clone("https://github.com/tianocore/edk2.git", &repo_path)
+                .unwrap()
+                .workdir()
+                .unwrap();
         }
 
         let pattern = format!("{}/**/*.{}", repo_path.display(), "inf");
