@@ -69,7 +69,11 @@ jobs:
         if: success() || failure()
         run: cargo install cargo-pants && cargo pants
       - name: Run cargo-tarpaulin
-        run: cargo tarpaulin --out Xml
+        run: cargo tarpaulin --out Xml --timeout 180
+      - uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: cobertura.xml
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
