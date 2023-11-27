@@ -52,7 +52,7 @@ impl FromStr for SectionType {
     type Err = ParseError;
 
     fn from_str(section_name: &str) -> Result<Self, Self::Err> {
-        match section_name {
+        match section_name.to_lowercase().as_str() {
             "defines" => Ok(SectionType::Defines),
             "sources" => Ok(SectionType::Sources),
             "binaries" => Ok(SectionType::Binaries),
