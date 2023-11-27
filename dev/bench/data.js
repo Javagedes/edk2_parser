@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701056439010,
+  "lastUpdate": 1701057073438,
   "repoUrl": "https://github.com/Javagedes/edk2_parser",
   "entries": {
     "Rust Benchmark": [
@@ -591,6 +591,42 @@ window.BENCHMARK_DATA = {
             "name": "parse_inf/opensslLib",
             "value": 2806185,
             "range": "± 18926",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joey.vagedes@gmail.com",
+            "name": "Joey Vagedes",
+            "username": "Javagedes"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "19592aa6ba873e75e2a327391ba90e600c1ee20c",
+          "message": "add tests that parse edk2 (#5)\n\nAdds a new test file for parsing edk2 itself. This test is to ensure\r\nany changes do not any config parser as a whole when run against edk2.\r\n\r\nThis not does mean the parsers continues to be correct. Other tests are\r\nnecessary for that. This only means that any changes do not break the\r\nability to parse in general.\r\n\r\nThis is a work in progress as only the inf parser is working",
+          "timestamp": "2023-11-26T19:49:21-08:00",
+          "tree_id": "9a9c9ad85343ce6999f8f732a22669358e700307",
+          "url": "https://github.com/Javagedes/edk2_parser/commit/19592aa6ba873e75e2a327391ba90e600c1ee20c"
+        },
+        "date": 1701057072512,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "parse_inf/baseLib",
+            "value": 1939779,
+            "range": "± 16442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_inf/opensslLib",
+            "value": 2803071,
+            "range": "± 146146",
             "unit": "ns/iter"
           }
         ]
