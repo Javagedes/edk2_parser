@@ -1,9 +1,6 @@
 #[cfg(test)]
 mod tests {
     use edk2_parser::{inf::Inf, ConfigParser};
-    use git2;
-    use glob;
-    use std;
 
     #[test]
     fn parse_edk2_inf() {
