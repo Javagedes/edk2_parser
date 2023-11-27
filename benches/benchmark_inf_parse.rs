@@ -1,8 +1,5 @@
 #[macro_use]
 extern crate criterion;
-
-use std::time::Duration;
-
 use criterion::Criterion;
 use edk2_parser::{inf::Inf, ConfigParser};
 
