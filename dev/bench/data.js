@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701055134890,
+  "lastUpdate": 1701055187246,
   "repoUrl": "https://github.com/Javagedes/edk2_parser",
   "entries": {
     "Rust Benchmark": [
@@ -335,6 +335,38 @@ window.BENCHMARK_DATA = {
             "name": "parse_inf/opensslLib",
             "value": 2814654,
             "range": "± 28458",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "committer": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "id": "1c396cc6f42b26a52f7054bc8a32d10df4d13941",
+          "message": "add tests that parse edk2",
+          "timestamp": "2023-11-25T20:56:46Z",
+          "url": "https://github.com/Javagedes/edk2_parser/pull/5/commits/1c396cc6f42b26a52f7054bc8a32d10df4d13941"
+        },
+        "date": 1701055186306,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "parse_inf/baseLib",
+            "value": 1933047,
+            "range": "± 17204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_inf/opensslLib",
+            "value": 2824004,
+            "range": "± 64658",
             "unit": "ns/iter"
           }
         ]
