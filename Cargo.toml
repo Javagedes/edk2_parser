@@ -5,7 +5,12 @@ edition = "2021"
 
 [lib]
 name = "edk2_parser"
+bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bench]]
+name = "benchmark_inf_parse"
+harness = false
 
 [dependencies]
 configparser = {version = "3.0.3", features = ["indexmap"]}
@@ -20,3 +25,4 @@ rmp-serde = "1.1.2"
 
 [dev-dependencies]
 env_logger = "0.10.1"
+criterion = "0.5.1"
