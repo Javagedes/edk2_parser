@@ -14,7 +14,7 @@
   MODULE_UNI_FILE                = OpensslLib.uni
   FILE_GUID                      = C873A7D0-9824-409f-9B42-2C158B992E69
   MODULE_TYPE                    = BASE
-  VERSION_STRING                 = 1.0
+  VERSION_TEXT                 = 1.0
   LIBRARY_CLASS                  = OpensslLib
   CONSTRUCTOR                    = OpensslLibConstructor
 

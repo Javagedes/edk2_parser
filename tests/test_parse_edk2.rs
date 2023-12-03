@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use edk2_parser::{inf::Inf, ConfigParser};
+    use edk2_parser::InfParser;
 
     #[test]
     fn parse_edk2_inf() {
@@ -17,11 +17,10 @@ mod tests {
         }
 
         let pattern = format!("{}/**/*.{}", repo_path.display(), "inf");
-        println!("pattern: {}", pattern);
         glob::glob(pattern.as_str()).unwrap().for_each(|entry| {
-            let mut parser = ConfigParser::<Inf>::new();
+            let mut parser = InfParser::new(None);
             let path = entry.unwrap();
-            parser.parse_from_file(path).unwrap();
+            parser.parse_file(path).unwrap();
         });
     }
 }

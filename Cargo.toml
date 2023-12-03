@@ -3,6 +3,11 @@ name = "uefi-parser"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+opt-level = "z"
+debug = false
+lto = true
+
 [lib]
 name = "edk2_parser"
 bench = false
@@ -14,14 +19,11 @@ harness = false
 
 [dependencies]
 configparser = {version = "3.0.3", features = ["indexmap"]}
-anyhow = "1.0.75"
 regex = "1.10.2"
 log = "0.4.20"
 indexmap = "^2.1.0"
 thiserror = "1.0.50"
-serde = {version = "1.0.193", features = ["derive"]}
-rmp-serde = "1.1.2"
-
+rusqlite = "0.30.0"
 
 [dev-dependencies]
 env_logger = "0.10.1"

@@ -1,18 +1,20 @@
 #[macro_use]
 extern crate criterion;
+use std::path::PathBuf;
+
 use criterion::Criterion;
-use edk2_parser::{inf::Inf, ConfigParser};
+use edk2_parser::InfParser;
 
 // The function you want to benchmark
-fn parse_inf(data: String) {
-    let mut parser = ConfigParser::<Inf>::new();
-    parser.parse(data).unwrap();
+fn parse_inf(file_path: PathBuf) {
+    let mut parser = InfParser::new(None);
+    parser.parse_file(file_path).unwrap();
 }
 
 // Criterion benchmark group
 fn my_benchmark(c: &mut Criterion) {
-    let d1 = include_str!("../tests/data/baseLib.inf").to_string();
-    let d2 = include_str!("../tests/data/opensslLib.inf").to_string();
+    let d1 = PathBuf::from("tests/data/baseLib.inf");
+    let d2 = PathBuf::from("tests/data/opensslLib.inf");
 
     let mut group = c.benchmark_group("parse_inf");
     group.sample_size(500);
