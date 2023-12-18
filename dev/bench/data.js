@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701057074931,
+  "lastUpdate": 1702863945515,
   "repoUrl": "https://github.com/Javagedes/edk2_parser",
   "entries": {
     "Rust Benchmark": [
@@ -663,6 +663,38 @@ window.BENCHMARK_DATA = {
             "name": "parse_inf/opensslLib",
             "value": 2803071,
             "range": "± 146146",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "committer": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "id": "32b4f3013e9d524898c210b58036344e238d6bf6",
+          "message": "Bump actions/upload-artifact from 3 to 4",
+          "timestamp": "2023-11-25T20:56:46Z",
+          "url": "https://github.com/Javagedes/edk2_parser/pull/6/commits/32b4f3013e9d524898c210b58036344e238d6bf6"
+        },
+        "date": 1702863944593,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "parse_inf/baseLib",
+            "value": 1936551,
+            "range": "± 56275",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_inf/opensslLib",
+            "value": 2818726,
+            "range": "± 26214",
             "unit": "ns/iter"
           }
         ]
