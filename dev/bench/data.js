@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706491780279,
+  "lastUpdate": 1707096174462,
   "repoUrl": "https://github.com/Javagedes/edk2_parser",
   "entries": {
     "Rust Benchmark": [
@@ -887,6 +887,38 @@ window.BENCHMARK_DATA = {
             "name": "parse_inf/opensslLib",
             "value": 2746742,
             "range": "± 79295",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "committer": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "id": "441847b9d0652d93270af1f4f81edc0a48cbbf9a",
+          "message": "Bump codecov/codecov-action from 3 to 4",
+          "timestamp": "2023-11-25T20:56:46Z",
+          "url": "https://github.com/Javagedes/edk2_parser/pull/10/commits/441847b9d0652d93270af1f4f81edc0a48cbbf9a"
+        },
+        "date": 1707096173588,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "parse_inf/baseLib",
+            "value": 1907421,
+            "range": "± 102899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_inf/opensslLib",
+            "value": 2769914,
+            "range": "± 35408",
             "unit": "ns/iter"
           }
         ]
