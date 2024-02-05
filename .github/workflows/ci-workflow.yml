@@ -70,7 +70,7 @@ jobs:
         run: cargo install cargo-pants && cargo pants
       - name: Run cargo-tarpaulin
         run: cargo tarpaulin --out Xml --timeout 180
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: cobertura.xml
