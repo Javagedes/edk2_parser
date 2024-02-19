@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707096174462,
+  "lastUpdate": 1708306754605,
   "repoUrl": "https://github.com/Javagedes/edk2_parser",
   "entries": {
     "Rust Benchmark": [
@@ -919,6 +919,38 @@ window.BENCHMARK_DATA = {
             "name": "parse_inf/opensslLib",
             "value": 2769914,
             "range": "± 35408",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "committer": {
+            "name": "Javagedes",
+            "username": "Javagedes"
+          },
+          "id": "3b4d146a14a295037c1ef3c7339a2ae3922863c4",
+          "message": "Update env_logger requirement from 0.10.1 to 0.11.2",
+          "timestamp": "2023-11-25T20:56:46Z",
+          "url": "https://github.com/Javagedes/edk2_parser/pull/11/commits/3b4d146a14a295037c1ef3c7339a2ae3922863c4"
+        },
+        "date": 1708306754261,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "parse_inf/baseLib",
+            "value": 1917675,
+            "range": "± 20862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_inf/opensslLib",
+            "value": 2789404,
+            "range": "± 30847",
             "unit": "ns/iter"
           }
         ]
